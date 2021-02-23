@@ -51,16 +51,16 @@ def checkSite():
                 rootSection = section.parent.parent.parent.parent
                 sDateSection = rootSection.find_all(class_= 'startDate')
                 eDateSection = rootSection.find_all(class_= 'endDate')
-                if sDateSection.len() >= 1:
-                    sDate = dateparser.parse(sDateSection[0], settings={'TIMEZONE': 'America/Phoenix'})
-                if eDateSection.len() >= 1:
-                    eDate = dateparser.parse(sDateSection[0], settings={'TIMEZONE': 'America/Phoenix'})
+                if len(sDateSection) >= 1:
+                    sDate = dateparser.parse(sDateSection[0].get('value'), settings={'TIMEZONE': 'America/Phoenix'})
+                if len(eDateSection) >= 1:
+                    eDate = dateparser.parse(sDateSection[0].get('value'), settings={'TIMEZONE': 'America/Phoenix'})
                 
                 tMessage = f"{section.text} spots on {sDate.strftime('%m/%d')} from {sDate.strftime('%I:%M%p')} to {eDate.strftime('%I:%M%p')}"
                 logging.debug(tMessage)
                 gMessage += tMessage + "\n"
             except:
-                logging.error("Unable to parse section, fallback send alert anyway with no data.")
+                logging.error("Unable to parse section, fallback send alert anyway with no data: %s", rootSection)
                 perr = True
 
     if count > 0:
