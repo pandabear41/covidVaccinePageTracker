@@ -41,6 +41,7 @@ def checkSite():
         return
 
     count = 0
+    spotCount = 0
     gMessage = ""
     perr = False
     for section in sectionsSpots:
@@ -54,8 +55,9 @@ def checkSite():
                 if len(sDateSection) >= 1:
                     sDate = dateparser.parse(sDateSection[0].get('value'), settings={'TIMEZONE': 'America/Phoenix'})
                 if len(eDateSection) >= 1:
-                    eDate = dateparser.parse(sDateSection[0].get('value'), settings={'TIMEZONE': 'America/Phoenix'})
+                    eDate = dateparser.parse(eDateSection[0].get('value'), settings={'TIMEZONE': 'America/Phoenix'})
                 
+                spotCount = max(int(section.text),spotCount)
                 tMessage = f"{section.text} spots on {sDate.strftime('%m/%d')} from {sDate.strftime('%I:%M%p')} to {eDate.strftime('%I:%M%p')}"
                 logging.debug(tMessage)
                 gMessage += tMessage + "\n"
@@ -70,10 +72,13 @@ def checkSite():
         #     gMessage = "Nothing to report"
         poTitle = f"{count} sections available"
         logging.debug("Sent pushover message")
-        p.notify(message=gMessage, title=poTitle, token=secrets.poApp, user=secrets.poUser, sound=secrets.poSound, priority=secrets.poPriority)
-        logging.debug("Sleeping %d seconds", secrets.poThrottleSecs)
-        s.enter(secrets.poThrottleSecs, 1, checkSite)
-        s.run()
+        p.notify(message=gMessage, title=poTitle, token=secrets.poApp, user=secrets.poUser, sound=secrets.poSound, priority=secrets.poPriority, url=secrets.url)
+        if spotCount >= 2:
+            logging.debug("Sleeping %d seconds", secrets.poThrottleSecs)
+            s.enter(secrets.poThrottleSecs, 1, checkSite)
+            s.run()
+        else:
+            scheduleRun()
         return
     
     scheduleRun()
