@@ -1,7 +1,11 @@
 import secrets
 from bs4 import BeautifulSoup
-import urllib3, re, sched, time, dateparser, logging, datetime, sys
+import urllib3, re, schedule, time, dateparser, logging, datetime, sys
 from notifiers import get_notifier
+
+running = False
+trottled = False
+timeT = 0
 
 file_handler = logging.FileHandler(filename='tracker.log')
 stdout_handler = logging.StreamHandler(sys.stdout)
@@ -9,15 +13,32 @@ handlers = [file_handler, stdout_handler]
 logging.basicConfig(encoding='utf-8', level=logging.DEBUG, format="%(asctime)s [%(threadName)-12.12s] [%(levelname)-5.5s]  %(message)s", handlers=handlers)
 
 p = get_notifier('pushover')
-s = sched.scheduler(time.time, time.sleep)
+
 
 def scheduleRun():
+    global running
     logging.debug("Sleeping %d seconds", secrets.delay)
-    s.enter(secrets.delay, 1, checkSite)
-    s.run()
+    running = False
 
 def checkSite():
+    global running, trottled, timeT
+
     logging.debug("Checking page")
+    if trottled:
+        if timeT >= secrets.poThrottleCycles:
+            logging.debug("Throttling disabled.")
+            trottled = False
+        else:
+            logging.debug("Throttling enabled, waiting %d more cycles.", (secrets.poThrottleCycles - timeT))
+            timeT += 1
+            return
+
+    if running:
+        logging.debug("Function already running, skipping.")
+        return
+    else:
+        running = True
+ 
     try:
         req = urllib3.PoolManager()
         page = req.request('GET', secrets.url)
@@ -74,9 +95,9 @@ def checkSite():
         logging.debug("Sent pushover message")
         p.notify(message=gMessage, title=poTitle, token=secrets.poApp, user=secrets.poUser, sound=secrets.poSound, priority=secrets.poPriority, url=secrets.url)
         if spotCount >= 2:
-            logging.debug("Sleeping %d seconds", secrets.poThrottleSecs)
-            s.enter(secrets.poThrottleSecs, 1, checkSite)
-            s.run()
+            logging.debug("Sleeping %d cycles", secrets.poThrottleCycles)
+            trottled = True
+            timeT = 0
         else:
             scheduleRun()
         return
@@ -84,6 +105,10 @@ def checkSite():
     scheduleRun()
 
 logging.debug("Program start")
-checkSite()            
+schedule.every(secrets.delay).seconds.do(checkSite)
+checkSite()     
 
-
+while True:
+    # run_pending
+    schedule.run_pending()
+    time.sleep(1)
